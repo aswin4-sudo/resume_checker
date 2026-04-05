@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Analyzer - AI-Powered Resume Review</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f8f9ff;
+        }
+
+        .upload-area.drag-over {
+            border-color: #764ba2;
+            background: #f0f0ff;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .role-select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        .result {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .score-card {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .score-number {
+            font-size: 48px;
+            font-weight: bold;
+        }
+
+        .skills-section {
+            margin-top: 20px;
+        }
+
+        .skill-tag {
+            display: inline-block;
+            background: #e0e7ff;
+            color: #4c51bf;
+            padding: 5px 12px;
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 14px;
+        }
+
+        .missing-skill {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .suggestion-item {
+            padding: 10px;
+            margin: 10px 0;
+            background: #f9fafb;
+            border-left: 3px solid #667eea;
+            border-radius: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            background: #f3f4f6;
+            color: #374151;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: monospace;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.8rem; }
+            .card { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 AI Resume Analyzer</h1>
+            <p>Upload your resume and get instant AI-powered feedback using DeepSeek</p>
+        </div>
+
+        <div class="card">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchTab('upload')">📁 Upload PDF</button>
+                <button class="tab-btn" onclick="switchTab('paste')">📝 Paste Text</button>
+            </div>
+
+            <!-- Upload Tab -->
+            <div id="upload-tab" class="tab-content active">
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                    <p>📄 Click or drag and drop your resume PDF here</p>
+                    <p style="font-size: 12px; margin-top: 10px;">Supported format: PDF (Max 10MB)</p>
+                    <input type="file" id="fileInput" accept=".pdf" style="display: none;" onchange="handleFileSelect(this)">
+                </div>
+            </div>
+
+            <!-- Paste Text Tab -->
+            <div id="paste-tab" class="tab-content">
+                <textarea id="resumeText" rows="10" placeholder="Paste your resume text here..."></textarea>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <label>🎯 Job Role (Optional):</label>
+                <select id="jobRole" class="role-select">
+                    <option value="General">General (Any Role)</option>
+                    <option value="Software Engineer">Software Engineer</option>
+                    <option value="Data Scientist">Data Scientist</option>
+                    <option value="Product Manager">Product Manager</option>
+                    <option value="DevOps Engineer">DevOps Engineer</option>
+                    <option value="Frontend Developer">Frontend Developer</option>
+                    <option value="Backend Developer">Backend Developer</option>
+                    <option value="Full Stack Developer">Full Stack Developer</option>
+                    <option value="Machine Learning Engineer">Machine Learning Engineer</option>
+                </select>
+            </div>
+
+            <button class="btn" id="analyzeBtn" onclick="analyzeResume()" style="margin-top: 20px; width: 100%;">
+                🚀 Analyze Resume
+            </button>
+        </div>
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        let currentFile = null;
+        let currentTab = 'upload';
+
+        // Drag and drop functionality
+        const uploadArea = document.getElementById('uploadArea');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('drag-over');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                currentFile = files[0];
+                if (currentFile.type === 'application/pdf') {
+                    uploadArea.innerHTML = `<p>✅ Selected: ${currentFile.name}</p><p style="font-size: 12px;">Click to change file</p>`;
+                } else {
+                    alert('Please upload a PDF file');
+                    currentFile = null;
+                }
+            }
+        });
+
+        function handleFileSelect(input) {
+            if (input.files.length > 0) {
+                currentFile = input.files[0];
+                if (currentFile.type === 'application/pdf') {
+                    uploadArea.innerHTML = `<p>✅ Selected: ${currentFile.name}</p><p style="font-size: 12px;">Click to change file</p>`;
+                } else {
+                    alert('Please upload a PDF file');
+                    currentFile = null;
+                }
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            if (tab === 'upload') {
+                document.querySelector('.tab-btn:first-child').classList.add('active');
+                document.getElementById('upload-tab').classList.add('active');
+            } else {
+                document.querySelector('.tab-btn:last-child').classList.add('active');
+                document.getElementById('paste-tab').classList.add('active');
+            }
+        }
+
+        async function analyzeResume() {
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const resultDiv = document.getElementById('result');
+            
+            // Validate input
+            if (currentTab === 'upload' && !currentFile) {
+                alert('Please select a PDF file first');
+                return;
+            }
+            
+            if (currentTab === 'paste') {
+                const resumeText = document.getElementById('resumeText').value;
+                if (!resumeText.trim() || resumeText.trim().length < 50) {
+                    alert('Please paste at least 50 characters of resume text');
+                    return;
+                }
+            }
+            
+            // Show loading state
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = '⏳ Analyzing...';
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Analyzing your resume with AI...</p></div>';
+            
+            const jobRole = document.getElementById('jobRole').value;
+            
+            try {
+                let response;
+                
+                if (currentTab === 'upload') {
+                    // Upload PDF
+                    const formData = new FormData();
+                    formData.append('resume', currentFile);
+                    formData.append('job_role', jobRole);
+                    
+                    response = await fetch('http://localhost:5000/analyze', {
+                        method: 'POST',
+                        body: formData
+                    });
+                } else {
+                    // Send text
+                    const resumeText = document.getElementById('resumeText').value;
+                    response = await fetch('http://localhost:5000/analyze-text', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            resume_text: resumeText,
+                            job_role: jobRole
+                        })
+                    });
+                }
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Analysis failed');
+                }
+                
+                displayResults(data);
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}<br><br>Make sure the backend server is running at http://localhost:5000</div>`;
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.textContent = '🚀 Analyze Resume';
+            }
+        }
+        
+        function displayResults(data) {
+            const resultDiv = document.getElementById('result');
+            const analysis = data.analysis;
+            
+            const scoreColor = analysis.score >= 70 ? '#10b981' : (analysis.score >= 50 ? '#f59e0b' : '#ef4444');
+            
+            resultDiv.innerHTML = `
+                <div class="card">
+                    <div class="score-card">
+                        <h3>📊 Resume Score</h3>
+                        <div class="score-number">${analysis.score}/100</div>
+                        <div style="margin-top: 10px;">${getScoreMessage(analysis.score)}</div>
+                    </div>
+                    
+                    ${analysis.summary ? `<p style="margin-bottom: 20px; padding: 15px; background: #f9fafb; border-radius: 8px;">💡 ${analysis.summary}</p>` : ''}
+                    
+                    <div class="skills-section">
+                        <h3>✅ Skills Found (${analysis.skills_found?.length || 0})</h3>
+                        <div>
+                            ${analysis.skills_found?.map(skill => `<span class="skill-tag">${escapeHtml(skill)}</span>`).join('') || '<p>No specific skills identified</p>'}
+                        </div>
+                    </div>
+                    
+                    <div class="skills-section">
+                        <h3>⚠️ Missing/Recommended Skills (${analysis.missing_skills?.length || 0})</h3>
+                        <div>
+                            ${analysis.missing_skills?.map(skill => `<span class="skill-tag missing-skill">${escapeHtml(skill)}</span>`).join('') || '<p>Great! No critical missing skills identified</p>'}
+                        </div>
+                    </div>
+                    
+                    ${analysis.strengths && analysis.strengths.length > 0 ? `
+                    <div class="skills-section">
+                        <h3>💪 Key Strengths</h3>
+                        <ul>
+                            ${analysis.strengths.map(strength => `<li>${escapeHtml(strength)}</li>`).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="skills-section">
+                        <h3>🎯 Suggestions for Improvement</h3>
+                        ${analysis.suggestions?.map(suggestion => `<div class="suggestion-item">📌 ${escapeHtml(suggestion)}</div>`).join('') || '<p>No suggestions available</p>'}
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;">
+                        Analyzed for role: <strong>${escapeHtml(data.job_role)}</strong>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function getScoreMessage(score) {
+            if (score >= 85) return "🎉 Excellent! Your resume is very strong!";
+            if (score >= 70) return "👍 Good resume! A few improvements can make it great.";
+            if (score >= 50) return "📝 Decent foundation. Consider the suggestions above.";
+            return "🔧 Needs improvement. Follow the suggestions to enhance your resume.";
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
